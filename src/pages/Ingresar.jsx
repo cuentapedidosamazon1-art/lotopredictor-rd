@@ -55,7 +55,7 @@ export default function Ingresar() {
       if (!res.ok) {
         setError(json.error || 'Error al guardar')
       } else {
-        setSuccess(`✅ Sorteo del ${new Date(fecha + 'T12:00').toLocaleDateString('es-DO', { weekday:'long', month:'long', day:'numeric' })} guardado correctamente`)
+        setSuccess(`✅ Sorteo del ${new Date(fecha + 'T12:00:00').toLocaleDateString('es-DO', { weekday:'long', month:'long', day:'numeric' })} guardado correctamente`)
         setNumeros(['', '', '', '', '', ''])
         document.getElementById('num-0')?.focus()
       }
