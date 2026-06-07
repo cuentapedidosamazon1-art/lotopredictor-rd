@@ -1,0 +1,97 @@
+.heatmap-card {
+  margin-bottom: 20px;
+}
+
+.heatmap-legend {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  font-size: 11px;
+  color: var(--text3);
+  font-family: var(--font-mono);
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.heat-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 4px;
+}
+
+.heatmap-grid {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 6px;
+}
+
+.heat-cell {
+  aspect-ratio: 1;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  transition: transform 0.15s;
+  border: 1px solid transparent;
+}
+
+.heat-cell:hover { transform: scale(1.15); z-index: 2; }
+
+.heat-num {
+  font-family: var(--font-display);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.heat-count {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  margin-top: 1px;
+  opacity: 0.7;
+}
+
+.heat-none { background: var(--bg3); border-color: var(--border); color: var(--text3); }
+.heat-cold { background: rgba(83,82,237,0.15); border-color: rgba(83,82,237,0.3); color: #7877f5; }
+.heat-cool { background: rgba(30,144,255,0.15); border-color: rgba(30,144,255,0.3); color: var(--cyan); }
+.heat-warm { background: rgba(245,200,66,0.15); border-color: rgba(245,200,66,0.3); color: var(--gold); }
+.heat-hot { background: rgba(245,200,66,0.3); border-color: var(--gold); color: var(--gold); box-shadow: 0 0 8px var(--gold-glow); }
+
+.sorteos-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sorteo-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px;
+  background: var(--bg3);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.sorteo-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 140px;
+}
+
+.sorteo-fecha {
+  font-size: 13px;
+  color: var(--text2);
+  font-family: var(--font-mono);
+  text-transform: capitalize;
+}
+
+@media (max-width: 640px) {
+  .heatmap-grid { grid-template-columns: repeat(8, 1fr); }
+}

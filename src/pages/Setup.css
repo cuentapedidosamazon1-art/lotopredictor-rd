@@ -1,0 +1,110 @@
+.setup {
+  max-width: 700px;
+}
+
+.setup-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.step-card {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.step-num {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--gold-dim);
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  font-family: var(--font-display);
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.step-content { flex: 1; }
+
+.step-desc {
+  color: var(--text2);
+  font-size: 13px;
+  margin-bottom: 14px;
+  line-height: 1.6;
+}
+
+.env-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.env-item {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 14px;
+  background: var(--bg3);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.env-key {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--gold);
+  white-space: nowrap;
+}
+
+.env-val {
+  font-size: 12px;
+  color: var(--text3);
+}
+
+.deploy-card {}
+
+.deploy-steps {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  counter-reset: deploy-counter;
+}
+
+.deploy-steps li {
+  padding-left: 20px;
+  position: relative;
+}
+
+.deploy-steps li strong {
+  display: block;
+  color: var(--text);
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.deploy-steps li p {
+  color: var(--text2);
+  font-size: 13px;
+  margin-bottom: 6px;
+  line-height: 1.5;
+}
+
+.deploy-steps li code {
+  display: block;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--cyan);
+  overflow-x: auto;
+}
