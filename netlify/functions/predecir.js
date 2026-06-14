@@ -20,7 +20,6 @@ function calcularUltimaAparicion(sorteos) {
       if (ultima[n] === undefined) ultima[n] = idx;
     });
   });
-  // Numbers that never appeared
   for (let i = 1; i <= 40; i++) {
     if (ultima[i] === undefined) ultima[i] = sorteos.length;
   }
@@ -41,25 +40,23 @@ function calcularPares(sorteos) {
   return pares;
 }
 
-async function callGemini(prompt) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`;
-
-  const response = await fetch(url, {
+async function callGroq(prompt) {
+  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
-    headers: { 
+    headers: {
       'Content-Type': 'application/json',
-      'x-goog-api-key': apiKey
+      'Authorization': `Bearer ${process.env.GROQ_API_KEY}`
     },
     body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.7, maxOutputTokens: 1000 }
+      model: 'llama-3.1-8b-instant',
+      max_tokens: 1000,
+      messages: [{ role: 'user', content: prompt }]
     })
   });
 
   const data = await response.json();
   if (data.error) throw new Error(data.error.message);
-  return data.candidates[0].content.parts[0].text;
+  return data.choices[0].message.content;
 }
 
 exports.handler = async (event, context) => {
@@ -77,7 +74,6 @@ exports.handler = async (event, context) => {
   try {
     const sql = neon(process.env.DATABASE_URL);
 
-    // Get last 30 sorteos for analysis
     const sorteos = await sql`
       SELECT * FROM sorteos 
       ORDER BY fecha DESC 
@@ -95,30 +91,25 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Statistical analysis
     const frecuencias = calcularFrecuencias(sorteos);
     const ultimaAparicion = calcularUltimaAparicion(sorteos);
     const pares = calcularPares(sorteos);
 
-    // Sort by frequency
     const porFrecuencia = Object.entries(frecuencias)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 15)
       .map(([n, f]) => ({ numero: parseInt(n), apariciones: f }));
 
-    // Numbers that haven't appeared in a while (cold numbers)
     const numerosFrios = Object.entries(ultimaAparicion)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 10)
       .map(([n, u]) => ({ numero: parseInt(n), sorteosSinSalir: u }));
 
-    // Most common pairs
     const mejoresPares = Object.entries(pares)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 10)
       .map(([par, freq]) => ({ par, aparicionesjuntos: freq }));
 
-    // Build recent history string
     const historialReciente = sorteos.slice(0, 10).map(s => 
       `${s.fecha}: [${s.n1}, ${s.n2}, ${s.n3}, ${s.n4}, ${s.n5}, ${s.n6}]`
     ).join('\n');
@@ -150,14 +141,13 @@ Responde ÚNICAMENTE con este JSON exacto, sin texto adicional ni backticks:
   "analisis": "análisis breve de los patrones observados en 2-3 oraciones"
 }`;
 
-    const aiResponse = await callGemini(prompt);
+    const aiResponse = await callGroq(prompt);
     
     let prediccionData;
     try {
       const cleaned = aiResponse.replace(/```json|```/g, '').trim();
       prediccionData = JSON.parse(cleaned);
     } catch (e) {
-      // Fallback: generate statistical prediction without AI
       const topNums = porFrecuencia.slice(0, 6).map(n => n.numero);
       prediccionData = {
         combinaciones: [
@@ -167,7 +157,6 @@ Responde ÚNICAMENTE con este JSON exacto, sin texto adicional ni backticks:
       };
     }
 
-    // Save prediction to DB
     for (const combo of prediccionData.combinaciones) {
       await sql`
         INSERT INTO predicciones (numeros_sugeridos, razonamiento, confianza)
