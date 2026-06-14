@@ -15,7 +15,6 @@ exports.handler = async (event, context) => {
   try {
     const sql = neon(process.env.DATABASE_URL);
 
-    // Create tables if they don't exist
     await sql`
       CREATE TABLE IF NOT EXISTS sorteos (
         id SERIAL PRIMARY KEY,
@@ -35,13 +34,9 @@ exports.handler = async (event, context) => {
     await sql`
       CREATE TABLE IF NOT EXISTS predicciones (
         id SERIAL PRIMARY KEY,
-        sorteo_id INTEGER,
         fecha_prediccion TIMESTAMP DEFAULT NOW(),
-        numeros_sugeridos INTEGER[] NOT NULL,
-        razonamiento TEXT,
-        confianza INTEGER DEFAULT 50,
-        acerto_count INTEGER DEFAULT 0,
-        validada BOOLEAN DEFAULT FALSE
+        resultado_json JSONB NOT NULL,
+        sorteos_al_generar INTEGER DEFAULT 0
       )
     `;
 
@@ -51,11 +46,6 @@ exports.handler = async (event, context) => {
       body: JSON.stringify({ success: true, message: 'Base de datos inicializada correctamente' })
     };
   } catch (error) {
-    console.error('DB init error:', error);
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({ error: error.message })
-    };
+    return { statusCode: 500, headers, body: JSON.stringify({ error: error.message }) };
   }
 };
