@@ -31,8 +31,10 @@ exports.handler = async (event, context) => {
       )
     `;
 
+    await sql`DROP TABLE IF EXISTS predicciones`;
+
     await sql`
-      CREATE TABLE  predicciones (
+      CREATE TABLE predicciones (
         id SERIAL PRIMARY KEY,
         fecha_prediccion TIMESTAMP DEFAULT NOW(),
         resultado_json JSONB NOT NULL,
