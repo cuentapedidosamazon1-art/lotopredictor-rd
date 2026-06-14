@@ -21,11 +21,43 @@ export default function Home() {
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
 
-  const generarPrediccion = async () => {
+  const cargarPrediccion = async () => {
     setLoading(true)
     setError(null)
     try {
       const res = await fetch(`${API}/predecir`)
+      const json = await res.json()
+      if (json.error) {
+        setError(json.error)
+      } else if (json.sin_prediccion) {
+        setError('No hay predicción todavía. Haz clic en "Nueva Predicción" para generar una.')
+      } else {
+        setData(json)
+      }
+    } catch (e) {
+      setError('Error conectando con el servidor.')
+    }
+    setLoading(false)
+  }
+
+  const generarPrediccion = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch(`${API}/predecir`, { method: 'POST' })
+      const json = await res.json()
+      if (json.error) {
+        setError(json.error)
+      } else {
+        setData(json)
+      }
+    } catch (e) {
+      setError('Error conectando con el servidor.')
+    }
+    setLoading(false)
+  }
+
+  useEffect(() => { cargarPrediccion() }, [])
       const json = await res.json()
       if (json.error) {
         setError(json.error)
