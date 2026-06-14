@@ -27,10 +27,10 @@ export default function Home() {
     try {
       const res = await fetch(`${API}/predecir`)
       const json = await res.json()
-      if (json.error) {
-        setError(json.error)
-      } else if (json.sin_prediccion) {
+      if (json.sin_prediccion) {
         setError('No hay predicción todavía. Haz clic en "Nueva Predicción" para generar una.')
+      } else if (json.error) {
+        setError(json.error)
       } else {
         setData(json)
       }
@@ -48,6 +48,7 @@ export default function Home() {
       const json = await res.json()
       if (json.error) {
         setError(json.error)
+        if (json.necesita_mas_datos) setData(null)
       } else {
         setData(json)
       }
@@ -58,26 +59,10 @@ export default function Home() {
   }
 
   useEffect(() => { cargarPrediccion() }, [])
-      const json = await res.json()
-      if (json.error) {
-        setError(json.error)
-        if (json.necesita_mas_datos) setData(null)
-      } else {
-        setData(json)
-      }
-    } catch (e) {
-      setError('Error conectando con el servidor. Verifica que la base de datos esté configurada.')
-    }
-    setLoading(false)
-  }
-
-  useEffect(() => { generarPrediccion() }, [])
 
   const nextDraw = () => {
     const now = new Date()
     const day = now.getDay()
-    const days = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado']
-    // Next Wednesday (3) or Saturday (6)
     let daysUntilNext = -1
     for (let i = 1; i <= 7; i++) {
       const next = (day + i) % 7
@@ -99,6 +84,11 @@ export default function Home() {
         <div>
           <h1 className="page-title">PREDICCIONES</h1>
           <p className="page-sub">Próximo sorteo: <strong style={{color:'var(--gold)'}}>{draw.fecha}</strong> · en {draw.dias} {draw.dias === 1 ? 'día' : 'días'}</p>
+          {data?.generadaEn && (
+            <p style={{fontSize:11, color:'var(--text3)', fontFamily:'var(--font-mono)', marginTop:4}}>
+              {data.cached ? '📌 Predicción guardada' : '✨ Nueva predicción'} · generada el {new Date(data.generadaEn).toLocaleDateString('es-DO', {day:'numeric', month:'short', year:'numeric'})} con {data.sorteosAlGenerar} sorteos
+            </p>
+          )}
         </div>
         <button className="btn btn-primary" onClick={generarPrediccion} disabled={loading}>
           {loading ? <span className="spinner" /> : '🔮'}
@@ -123,7 +113,7 @@ export default function Home() {
               <div key={i} className="loading-ball" style={{animationDelay:`${i*0.1}s`}}>?</div>
             ))}
           </div>
-          <p>Analizando {data?.estadisticas?.totalSorteosAnalizados || ''} sorteos con IA...</p>
+          <p>Analizando sorteos con IA...</p>
         </div>
       )}
 
