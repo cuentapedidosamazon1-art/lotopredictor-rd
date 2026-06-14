@@ -1,10 +1,8 @@
 const { neon } = require('@neondatabase/serverless');
 
-// Statistical analysis helpers
 function calcularFrecuencias(sorteos) {
   const freq = {};
   for (let i = 1; i <= 40; i++) freq[i] = 0;
-  
   sorteos.forEach(s => {
     [s.n1, s.n2, s.n3, s.n4, s.n5, s.n6].forEach(n => {
       freq[n] = (freq[n] || 0) + 1;
@@ -53,7 +51,6 @@ async function callGroq(prompt) {
       messages: [{ role: 'user', content: prompt }]
     })
   });
-
   const data = await response.json();
   if (data.error) throw new Error(data.error.message);
   return data.choices[0].message.content;
@@ -71,50 +68,88 @@ exports.handler = async (event, context) => {
     return { statusCode: 200, headers, body: '' };
   }
 
-  try {
-    const sql = neon(process.env.DATABASE_URL);
+  const sql = neon(process.env.DATABASE_URL);
 
-    const sorteos = await sql`
-      SELECT * FROM sorteos 
-      ORDER BY fecha DESC 
-      LIMIT 30
-    `;
+  // GET — devuelve la última predicción guardada sin generar una nueva
+  if (event.httpMethod === 'GET') {
+    try {
+      const sorteos = await sql`SELECT COUNT(*) as total FROM sorteos`;
+      const totalSorteos = parseInt(sorteos[0].total);
 
-    if (sorteos.length < 3) {
+      const ultima = await sql`
+        SELECT * FROM predicciones 
+        ORDER BY fecha_prediccion DESC 
+        LIMIT 1
+      `;
+
+      if (ultima.length === 0) {
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ sin_prediccion: true, totalSorteos })
+        };
+      }
+
+      const p = ultima[0];
       return {
         statusCode: 200,
         headers,
         body: JSON.stringify({
-          error: 'Se necesitan al menos 3 sorteos para generar predicciones',
-          necesita_mas_datos: true
+          cached: true,
+          predicciones: p.resultado_json.predicciones,
+          analisis: p.resultado_json.analisis,
+          estadisticas: p.resultado_json.estadisticas,
+          generadaEn: p.fecha_prediccion,
+          sorteosAlGenerar: p.sorteos_al_generar
         })
       };
+    } catch (e) {
+      return { statusCode: 500, headers, body: JSON.stringify({ error: e.message }) };
     }
+  }
 
-    const frecuencias = calcularFrecuencias(sorteos);
-    const ultimaAparicion = calcularUltimaAparicion(sorteos);
-    const pares = calcularPares(sorteos);
+  // POST — genera una predicción nueva y la guarda
+  if (event.httpMethod === 'POST') {
+    try {
+      const sorteos = await sql`
+        SELECT * FROM sorteos ORDER BY fecha DESC LIMIT 30
+      `;
 
-    const porFrecuencia = Object.entries(frecuencias)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 15)
-      .map(([n, f]) => ({ numero: parseInt(n), apariciones: f }));
+      if (sorteos.length < 3) {
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            error: 'Se necesitan al menos 3 sorteos para generar predicciones',
+            necesita_mas_datos: true
+          })
+        };
+      }
 
-    const numerosFrios = Object.entries(ultimaAparicion)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
-      .map(([n, u]) => ({ numero: parseInt(n), sorteosSinSalir: u }));
+      const frecuencias = calcularFrecuencias(sorteos);
+      const ultimaAparicion = calcularUltimaAparicion(sorteos);
+      const pares = calcularPares(sorteos);
 
-    const mejoresPares = Object.entries(pares)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
-      .map(([par, freq]) => ({ par, aparicionesjuntos: freq }));
+      const porFrecuencia = Object.entries(frecuencias)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 15)
+        .map(([n, f]) => ({ numero: parseInt(n), apariciones: f }));
 
-    const historialReciente = sorteos.slice(0, 10).map(s => 
-      `${s.fecha}: [${s.n1}, ${s.n2}, ${s.n3}, ${s.n4}, ${s.n5}, ${s.n6}]`
-    ).join('\n');
+      const numerosFrios = Object.entries(ultimaAparicion)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([n, u]) => ({ numero: parseInt(n), sorteosSinSalir: u }));
 
-    const prompt = `Eres un analizador estadístico de lotería. Analiza estos datos del juego LOTO LEIDSA (República Dominicana) donde se eligen 6 números del 1 al 40.
+      const mejoresPares = Object.entries(pares)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([par, freq]) => ({ par, aparicionesjuntos: freq }));
+
+      const historialReciente = sorteos.slice(0, 10).map(s =>
+        `${s.fecha}: [${s.n1}, ${s.n2}, ${s.n3}, ${s.n4}, ${s.n5}, ${s.n6}]`
+      ).join('\n');
+
+      const prompt = `Eres un analizador estadístico de lotería. Analiza estos datos del juego LOTO LEIDSA (República Dominicana) donde se eligen 6 números del 1 al 40.
 
 HISTORIAL RECIENTE (últimos 10 sorteos):
 ${historialReciente}
@@ -141,50 +176,55 @@ Responde ÚNICAMENTE con este JSON exacto, sin texto adicional ni backticks:
   "analisis": "análisis breve de los patrones observados en 2-3 oraciones"
 }`;
 
-    const aiResponse = await callGroq(prompt);
-    
-    let prediccionData;
-    try {
-      const cleaned = aiResponse.replace(/```json|```/g, '').trim();
-      prediccionData = JSON.parse(cleaned);
-    } catch (e) {
-      const topNums = porFrecuencia.slice(0, 6).map(n => n.numero);
-      prediccionData = {
-        combinaciones: [
-          { numeros: topNums, estrategia: 'Números más frecuentes', confianza: 55 }
-        ],
-        analisis: 'Predicción basada en frecuencia histórica.'
+      const aiResponse = await callGroq(prompt);
+
+      let prediccionData;
+      try {
+        const cleaned = aiResponse.replace(/```json|```/g, '').trim();
+        prediccionData = JSON.parse(cleaned);
+      } catch (e) {
+        const topNums = porFrecuencia.slice(0, 6).map(n => n.numero);
+        prediccionData = {
+          combinaciones: [{ numeros: topNums, estrategia: 'Números más frecuentes', confianza: 55 }],
+          analisis: 'Predicción basada en frecuencia histórica.'
+        };
+      }
+
+      const estadisticas = {
+        totalSorteosAnalizados: sorteos.length,
+        numerosMasFrecuentes: porFrecuencia.slice(0, 8),
+        numerosMasFrios: numerosFrios.slice(0, 6),
+        mejoresPares: mejoresPares.slice(0, 5)
       };
-    }
 
-    for (const combo of prediccionData.combinaciones) {
-      await sql`
-        INSERT INTO predicciones (numeros_sugeridos, razonamiento, confianza)
-        VALUES (${combo.numeros}, ${combo.estrategia}, ${combo.confianza})
-      `;
-    }
-
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({
+      const resultadoJson = {
         predicciones: prediccionData.combinaciones,
         analisis: prediccionData.analisis,
-        estadisticas: {
-          totalSorteosAnalizados: sorteos.length,
-          numerosMasFrecuentes: porFrecuencia.slice(0, 8),
-          numerosMasFrios: numerosFrios.slice(0, 6),
-          mejoresPares: mejoresPares.slice(0, 5)
-        }
-      })
-    };
+        estadisticas
+      };
 
-  } catch (error) {
-    console.error('Prediction error:', error);
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({ error: error.message })
-    };
+      // Guarda la predicción nueva (borra las anteriores para mantener solo la última)
+      await sql`DELETE FROM predicciones`;
+      await sql`
+        INSERT INTO predicciones (resultado_json, sorteos_al_generar)
+        VALUES (${JSON.stringify(resultadoJson)}, ${sorteos.length})
+      `;
+
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          cached: false,
+          ...resultadoJson,
+          generadaEn: new Date().toISOString(),
+          sorteosAlGenerar: sorteos.length
+        })
+      };
+
+    } catch (error) {
+      return { statusCode: 500, headers, body: JSON.stringify({ error: error.message }) };
+    }
   }
+
+  return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
 };
