@@ -16,6 +16,32 @@ function StatBar({ label, value, max, color = 'gold' }) {
   )
 }
 
+function ConfiabilidadMeter({ porcentaje, aciertos, sorteosProbados }) {
+  const color = porcentaje >= 40 ? 'var(--green)' : porcentaje >= 25 ? 'var(--gold)' : 'var(--red)'
+  return (
+    <div className="confiabilidad-card card">
+      <div className="card-title">📈 ÍNDICE DE CONFIABILIDAD</div>
+      <div className="conf-main">
+        <div className="conf-circle" style={{ borderColor: color }}>
+          <span className="conf-pct" style={{ color }}>{porcentaje}%</span>
+          <span className="conf-label">aciertos</span>
+        </div>
+        <div className="conf-info">
+          <p>En pruebas con los últimos <strong style={{color:'var(--gold)'}}>{sorteosProbados} sorteos</strong>, el modelo estadístico acertó <strong style={{color}}>{aciertos} números</strong> de los posibles.</p>
+          <p style={{marginTop:8, fontSize:12, color:'var(--text3)'}}>
+            {porcentaje >= 40 ? '🟢 Modelo con buena precisión estadística' :
+             porcentaje >= 25 ? '🟡 Modelo en desarrollo — ingresa más sorteos para mejorar' :
+             '🔴 Se necesitan más sorteos para calibrar el modelo'}
+          </p>
+          <p style={{marginTop:6, fontSize:11, color:'var(--text3)', fontFamily:'var(--font-mono)'}}>
+            * Basado en backtesting: cuántos números del top-12 estadístico coincidieron con sorteos reales pasados.
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Home() {
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState(null)
@@ -82,11 +108,11 @@ export default function Home() {
     <div className="home animate-in">
       <div className="home-header">
         <div>
-          <h1 className="page-title">PREDICCIONES</h1>
+          <h1 className="page-title">PREDICCIÓN</h1>
           <p className="page-sub">Próximo sorteo: <strong style={{color:'var(--gold)'}}>{draw.fecha}</strong> · en {draw.dias} {draw.dias === 1 ? 'día' : 'días'}</p>
           {data?.generadaEn && (
             <p style={{fontSize:11, color:'var(--text3)', fontFamily:'var(--font-mono)', marginTop:4}}>
-              {data.cached ? '📌 Predicción guardada' : '✨ Nueva predicción'} · generada el {new Date(data.generadaEn).toLocaleDateString('es-DO', {day:'numeric', month:'short', year:'numeric'})} con {data.sorteosAlGenerar} sorteos
+              {data.cached ? '📌 Guardada' : '✨ Nueva'} · {new Date(data.generadaEn).toLocaleDateString('es-DO', {day:'numeric', month:'short', year:'numeric'})} · {data.sorteosAlGenerar} sorteos analizados
             </p>
           )}
         </div>
@@ -113,62 +139,90 @@ export default function Home() {
               <div key={i} className="loading-ball" style={{animationDelay:`${i*0.1}s`}}>?</div>
             ))}
           </div>
-          <p>Analizando sorteos con IA...</p>
+          <p>Analizando {data?.estadisticas?.totalSorteosAnalizados || ''} sorteos con IA...</p>
         </div>
       )}
 
       {data && !loading && (
         <>
-          <div className="predictions-grid">
-            {data.predicciones?.map((pred, idx) => (
-              <div key={idx} className="prediction-card" style={{animationDelay:`${idx*0.1}s`}}>
-                <div className="pred-header">
-                  <span className="pred-rank">#{idx + 1}</span>
-                  <span className="badge badge-gold">{pred.confianza}% confianza</span>
-                </div>
-                <div className="pred-balls">
-                  {[...pred.numeros].sort((a,b)=>a-b).map((n, i) => (
-                    <div key={i} className="ball gold" style={{animationDelay:`${i*0.07}s`, animation:`ballDrop 0.4s ease ${i*0.07}s both`}}>
-                      {n}
-                    </div>
-                  ))}
-                </div>
-                <div className="pred-strategy">
-                  <span>📊</span> {pred.estrategia}
-                </div>
+          {/* Predicción principal */}
+          <div className="prediction-main card">
+            <div className="pred-main-header">
+              <div>
+                <div className="card-title">🎯 COMBINACIÓN RECOMENDADA</div>
+                <p style={{fontSize:12, color:'var(--text3)', fontFamily:'var(--font-mono)'}}>Score compuesto: frecuencia + rezago + pares</p>
               </div>
-            ))}
+            </div>
+            <div className="pred-balls-main">
+              {data.prediccion?.numeros && [...data.prediccion.numeros].sort((a,b)=>a-b).map((n, i) => (
+                <div key={i} className="ball gold" style={{animation:`ballDrop 0.4s ease ${i*0.1}s both`}}>
+                  {n}
+                </div>
+              ))}
+            </div>
+
+            {data.prediccion?.factores && (
+              <div className="factores">
+                {data.prediccion.factores.frecuentes?.length > 0 && (
+                  <span className="factor-tag tag-gold">🔥 Frecuentes: {data.prediccion.factores.frecuentes.join(', ')}</span>
+                )}
+                {data.prediccion.factores.frios?.length > 0 && (
+                  <span className="factor-tag tag-blue">🧊 Fríos: {data.prediccion.factores.frios.join(', ')}</span>
+                )}
+                {data.prediccion.factores.pares?.length > 0 && (
+                  <span className="factor-tag tag-green">🔗 Por pares: {data.prediccion.factores.pares.join(', ')}</span>
+                )}
+              </div>
+            )}
+
+            {data.prediccion?.razonamiento && (
+              <div className="razonamiento">
+                <span style={{color:'var(--text3)'}}>🧠</span> {data.prediccion.razonamiento}
+              </div>
+            )}
           </div>
 
-          {data.analisis && (
-            <div className="card analisis-card">
-              <div className="card-title">🧠 ANÁLISIS DE LA IA</div>
-              <p style={{color:'var(--text2)', lineHeight:1.7, fontSize:14}}>{data.analisis}</p>
-            </div>
+          {/* Índice de confiabilidad */}
+          {data.confiabilidad && data.confiabilidad.sorteosProbados > 0 && (
+            <ConfiabilidadMeter {...data.confiabilidad} />
           )}
 
+          {/* Estadísticas */}
           {data.estadisticas && (
             <div className="stats-section">
               <div className="card">
-                <div className="card-title">🔥 NÚMEROS MÁS FRECUENTES</div>
+                <div className="card-title">🏆 TOP NÚMEROS POR SCORE</div>
+                <div className="stats-list">
+                  {data.estadisticas.topPorScore?.map((n, i) => (
+                    <StatBar key={i} label={`Nº ${n.numero}`} value={n.score}
+                      max={data.estadisticas.topPorScore[0].score} color="gold" />
+                  ))}
+                </div>
+                <p style={{fontSize:11,color:'var(--text3)',marginTop:10,fontFamily:'var(--font-mono)'}}>
+                  Score = frecuencia (40%) + rezago (30%) + pares (30%)
+                </p>
+              </div>
+
+              <div className="card">
+                <div className="card-title">🔥 MÁS FRECUENTES</div>
                 <div className="stats-list">
                   {data.estadisticas.numerosMasFrecuentes?.map((n, i) => (
-                    <StatBar key={i} label={`Número ${n.numero}`} value={n.apariciones}
+                    <StatBar key={i} label={`Nº ${n.numero}`} value={n.apariciones}
                       max={data.estadisticas.numerosMasFrecuentes[0].apariciones} color="gold" />
                   ))}
                 </div>
               </div>
 
               <div className="card">
-                <div className="card-title">🧊 NÚMEROS MÁS FRÍOS</div>
+                <div className="card-title">🧊 MÁS FRÍOS</div>
                 <div className="stats-list">
                   {data.estadisticas.numerosMasFrios?.map((n, i) => (
-                    <StatBar key={i} label={`Número ${n.numero}`} value={n.sorteosSinSalir}
+                    <StatBar key={i} label={`Nº ${n.numero}`} value={n.sorteosSinSalir}
                       max={data.estadisticas.numerosMasFrios[0].sorteosSinSalir} color="blue" />
                   ))}
                 </div>
-                <p style={{fontSize:11,color:'var(--text3)',marginTop:12,fontFamily:'var(--font-mono)'}}>
-                  Mayor barra = más sorteos sin aparecer
+                <p style={{fontSize:11,color:'var(--text3)',marginTop:10,fontFamily:'var(--font-mono)'}}>
+                  Mayor barra = más sorteos ausente
                 </p>
               </div>
 
@@ -184,7 +238,7 @@ export default function Home() {
                           <span style={{color:'var(--text3)'}}>+</span>
                           <div className="ball" style={{width:36,height:36,fontSize:16}}>{b}</div>
                         </div>
-                        <span className="badge badge-blue">{p.aparicionesjuntos}x juntos</span>
+                        <span className="badge badge-blue">{p.aparicionesjuntos}x</span>
                       </div>
                     )
                   })}
@@ -194,7 +248,7 @@ export default function Home() {
           )}
 
           <div className="disclaimer">
-            <span>⚠️</span> Las predicciones son análisis estadísticos basados en historial. La lotería es aleatoria — juega con responsabilidad.
+            <span>⚠️</span> Las predicciones son análisis estadísticos — la lotería es aleatoria. Juega con responsabilidad.
           </div>
         </>
       )}
