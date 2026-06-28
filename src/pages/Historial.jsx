@@ -23,6 +23,14 @@ export default function Historial() {
 
   useEffect(() => { cargar() }, [])
 
+  const formatFecha = (rawFecha) => {
+    if (!rawFecha) return 'Sin fecha'
+    const str = rawFecha.toString().split('T')[0]
+    const [y, m, d] = str.split('-')
+    const fecha = new Date(parseInt(y), parseInt(m) - 1, parseInt(d))
+    return isNaN(fecha) ? str : fecha.toLocaleDateString('es-DO', { weekday:'short', day:'numeric', month:'short', year:'numeric' })
+  }
+
   // Calculate number frequencies for the heatmap
   const freq = {}
   for (let i = 1; i <= 40; i++) freq[i] = 0
@@ -94,25 +102,21 @@ export default function Historial() {
         <div className="card">
           <div className="card-title">📅 RESULTADOS RECIENTES</div>
           <div className="sorteos-list">
-            {sorteos.map((s, idx) => {
-              const fecha = new Date(s.fecha + 'T12:00')
-              const fechaStr = fecha.toLocaleDateString('es-DO', { weekday:'short', day:'numeric', month:'short', year:'numeric' })
-              return (
-                <div key={s.id} className="sorteo-row animate-in" style={{animationDelay:`${idx*0.03}s`}}>
-                  <div className="sorteo-meta">
-                    <span className="sorteo-fecha">{fechaStr}</span>
-                    <span className={`badge ${s.dia_semana === 'miercoles' ? 'badge-blue' : 'badge-gold'}`}>
-                      {s.dia_semana}
-                    </span>
-                  </div>
-                  <div className="balls-row">
-                    {[s.n1, s.n2, s.n3, s.n4, s.n5, s.n6].map((n, i) => (
-                      <div key={i} className="ball" style={{width:36,height:36,fontSize:16}}>{n}</div>
-                    ))}
-                  </div>
+            {sorteos.map((s, idx) => (
+              <div key={s.id} className="sorteo-row animate-in" style={{animationDelay:`${idx*0.03}s`}}>
+                <div className="sorteo-meta">
+                  <span className="sorteo-fecha">{formatFecha(s.fecha)}</span>
+                  <span className={`badge ${s.dia_semana === 'miercoles' ? 'badge-blue' : 'badge-gold'}`}>
+                    {s.dia_semana}
+                  </span>
                 </div>
-              )
-            })}
+                <div className="balls-row">
+                  {[s.n1, s.n2, s.n3, s.n4, s.n5, s.n6].map((n, i) => (
+                    <div key={i} className="ball" style={{width:36,height:36,fontSize:16}}>{n}</div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
